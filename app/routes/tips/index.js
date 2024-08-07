@@ -1,24 +1,11 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-
-
 
 /*  -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
       メイン処理
     -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- */
-router.use('/category', require('./category.js'));
-router.use('/tip', require('./tip.js'));
+router.use("/category", require("./category.js"));
+router.use("/tip", require("./tip.js"));
 
-module.exports = {
-  router,
-};
+module.exports = router;
 /*  -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-  */
-
-
-
-/*  -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-      関数定義
-    -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- */
-
-/*  -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-  */
-
