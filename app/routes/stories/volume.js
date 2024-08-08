@@ -64,6 +64,7 @@ router.post("/SetDetail", async function (req, res, next) {
   let query = "";
   let params = [];
 
+  // 必須チェック
   if (!req.query.volume_title) {
     res.status(400);
     res.json({
