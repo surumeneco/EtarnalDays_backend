@@ -26,6 +26,24 @@ routing("/tips/", "tip");
 routing("/dictionaries/", "dictionary");
 routing("/manages/", "manage");
 
+// ルーティングで該当先が無かったら、404画面を表示するミドルウェア。
+app.use(function (req, res, next) {
+  var err = new Error("Not Found");
+  err.status = 404;
+  next(err);
+});
+
+// エラーが発生したら、500画面を表示するミドルウェア。
+app.use(function (err, req, res, next) {
+  // set locals, only providing error in development
+  res.locals.message = err.message;
+  res.locals.error = req.app.get("env") === "development" ? err : {};
+
+  // render the error page
+  res.status(err.status || 500);
+  res.render("error");
+});
+
 //サーバ起動
 const port = process.env.PORT || 3000;
 app.listen(port, () => {
