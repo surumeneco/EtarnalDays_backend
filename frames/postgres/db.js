@@ -1,10 +1,11 @@
 const { Pool } = require("pg");
+require("dotenv").config();
 const { CONNECTION_STRING } = process.env;
 
 const conn_db = new Pool({
   connectionString: CONNECTION_STRING,
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
+  connectionTimeoutMillis: 30000,
 });
 
 /*  -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
