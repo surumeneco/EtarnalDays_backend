@@ -78,6 +78,13 @@ router.post("/SetDetail", async function (req, res, next) {
     });
     return;
   }
+  if (!req.query.status) {
+    res.status(400);
+    res.json({
+      results: "status is required.",
+    });
+    return;
+  }
 
   // 存在チェック
   query += " select";
@@ -108,7 +115,7 @@ router.post("/SetDetail", async function (req, res, next) {
     query += ";";
     params.push(req.query.outline);
     params.push(req.query.display_no);
-    params.push(req.query.status ? req.query.status : "");
+    params.push(req.query.status);
     if (req.query.public_date) {
       params.push(req.query.public_date);
     }
@@ -147,7 +154,7 @@ router.post("/SetDetail", async function (req, res, next) {
     params.push(req.query.volume_title);
     params.push(req.query.outline ? req.query.outline : "");
     params.push(req.query.display_no);
-    params.push(req.query.status ? req.query.status : "");
+    params.push(req.query.status);
     if (req.query.public_date) {
       params.push(req.query.public_date);
     }
