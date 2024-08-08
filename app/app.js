@@ -1,4 +1,5 @@
 const express = require("express");
+const path = require("path");
 const app = express();
 
 /*  -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
@@ -20,11 +21,11 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
 // ルーティング
-routing("/generals/", "general");
-routing("/stories/", "story");
-routing("/tips/", "tip");
-routing("/dictionaries/", "dictionary");
-routing("/manages/", "manage");
+routing("generals/", "general");
+routing("stories/", "story");
+routing("tips/", "tip");
+routing("dictionaries/", "dictionary");
+routing("manages/", "manage");
 
 // ルーティングで該当先が無かったら、404画面を表示するミドルウェア。
 app.use(function (req, res, next) {
