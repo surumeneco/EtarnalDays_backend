@@ -1,8 +1,12 @@
 const express = require("express");
 const router = express.Router();
-const { execute_query } = require("../../../frames/postgres/db.js");
+const {
+  execute_query,
+  execute_transaction,
+} = require("../../../frames/postgres/db.js");
 const { format_date } = require("../../../frames/datetime/datetime.js");
 const { check_auth } = require("../../../frames/core/authorization.js");
+const { parse_param } = require("../../../frames/core/parse_param.js");
 
 /*  -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
       メイン処理
@@ -51,10 +55,79 @@ router.get("/GetManageDetail", function (req, res, next) {
 /*  ---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---
       編表示番号反映
     ---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---  */
-router.post("/SetNo", function (req, res, next) {
-  res.json({
-    message: "SetNo",
+router.post("/SetNo", async function (req, res, next) {
+  // 権限チェック
+  if (!(await check_auth(req, res, 3))) {
+    return;
+  }
+
+  // パラメータ変換
+  const req_params = parse_param(req, res);
+  if (!req_params) {
+    return;
+  }
+  /*  -----=-----=-----=-----=-----=-----
+        {
+          volumes: [
+            {
+              volume_title,
+              display_no
+            }
+          ]
+        }
+      -----=-----=-----=-----=-----=-----  */
+
+  // 必須チェック
+  if (!req_params.volumes) {
+    res.status(400);
+    res.json({
+      results: "volumes is required.",
+    });
+    return;
+  }
+
+  // 型チェック
+  if (!Array.isArray(req_params.volumes)) {
+    res.status(400);
+    res.json({
+      results: "volumes are not Array object.",
+    });
+    return;
+  }
+
+  let queries = [];
+  req_params.volumes.forEach((volume) => {
+    let text = "";
+    let params = [];
+    text += " update t_story_volume";
+    text += " set";
+    text += " display_no = $1";
+    text += " where volume_title = $2";
+    params.push(volume.display_no);
+    params.push(volume.volume_title);
+    queries.push({ text, params });
   });
+
+  try {
+    const results = await execute_transaction(queries);
+    res.json({
+      result_count: results.reduce((acc, result) => {
+        return acc + result.rowCount;
+      }, 0),
+      results: results.reduce((acc, result) => {
+        result.rows.forEach((row) => {
+          acc.push(row);
+        });
+        return acc;
+      }, []),
+    });
+  } catch (e) {
+    console.log(e);
+    res.status(400);
+    res.json({
+      results: "request failed.",
+    });
+  }
 });
 /*  ---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---  */
 
@@ -67,25 +140,37 @@ router.post("/SetDetail", async function (req, res, next) {
     return;
   }
 
-  let query = "";
-  let params = [];
+  // パラメータ変換
+  const req_params = parse_param(req, res);
+  if (!req_params) {
+    return;
+  }
+  /*  -----=-----=-----=-----=-----=-----
+        {
+          volume_title: string,
+          outline: string,
+          display_no: number string,
+          status: string,
+          public_date: date string
+        }
+      -----=-----=-----=-----=-----=-----  */
 
   // 必須チェック
-  if (!req.query.volume_title) {
+  if (!req_params.volume_title) {
     res.status(400);
     res.json({
       results: "volume_title is required.",
     });
     return;
   }
-  if (!req.query.display_no) {
+  if (!req_params.display_no) {
     res.status(400);
     res.json({
       results: "display_no is required.",
     });
     return;
   }
-  if (!req.query.status) {
+  if (!req_params.status) {
     res.status(400);
     res.json({
       results: "status is required.",
@@ -93,13 +178,16 @@ router.post("/SetDetail", async function (req, res, next) {
     return;
   }
 
+  let query = "";
+  let params = [];
+
   // 存在チェック
   query += " select";
   query += " volume_title as title";
   query += " from t_story_volume";
   query += " where";
   query += " volume_title = $1";
-  params.push(req.query.volume_title);
+  params.push(req_params.volume_title);
   const exist_check = await execute_query(query, params);
   query = "";
   params = [];
@@ -111,7 +199,7 @@ router.post("/SetDetail", async function (req, res, next) {
     query += " outline = $1,";
     query += " display_no = $2,";
     query += " status = $3,";
-    if (req.query.public_date) {
+    if (req_params.public_date) {
       query += " public_date = $4,";
       query += " update_date = $5";
       query += " where volume_title = $6";
@@ -119,15 +207,14 @@ router.post("/SetDetail", async function (req, res, next) {
       query += " update_date = $4";
       query += " where volume_title = $5";
     }
-    query += ";";
-    params.push(req.query.outline);
-    params.push(req.query.display_no);
-    params.push(req.query.status);
-    if (req.query.public_date) {
-      params.push(req.query.public_date);
+    params.push(req_params.outline ? req_params.outline : "");
+    params.push(req_params.display_no);
+    params.push(req_params.status);
+    if (req_params.public_date) {
+      params.push(req_params.public_date);
     }
     params.push(format_date(new Date()));
-    params.push(req.query.volume_title);
+    params.push(req_params.volume_title);
   } else {
     // 新規の時
     query += " insert into t_story_volume";
@@ -136,7 +223,7 @@ router.post("/SetDetail", async function (req, res, next) {
     query += " outline,";
     query += " display_no,";
     query += " status,";
-    if (req.query.public_date) {
+    if (req_params.public_date) {
       query += " public_date,";
     }
     query += " update_date,";
@@ -148,7 +235,7 @@ router.post("/SetDetail", async function (req, res, next) {
     query += " $2,";
     query += " $3,";
     query += " $4,";
-    if (req.query.public_date) {
+    if (req_params.public_date) {
       query += " $5,";
       query += " $6,";
       query += " $7";
@@ -157,13 +244,12 @@ router.post("/SetDetail", async function (req, res, next) {
       query += " $6";
     }
     query += " )";
-    query += ";";
-    params.push(req.query.volume_title);
-    params.push(req.query.outline ? req.query.outline : "");
-    params.push(req.query.display_no);
-    params.push(req.query.status);
-    if (req.query.public_date) {
-      params.push(req.query.public_date);
+    params.push(req_params.volume_title);
+    params.push(req_params.outline ? req_params.outline : "");
+    params.push(req_params.display_no);
+    params.push(req_params.status);
+    if (req_params.public_date) {
+      params.push(req_params.public_date);
     }
     params.push(format_date(new Date()));
     params.push(format_date(new Date()));
@@ -176,14 +262,9 @@ router.post("/SetDetail", async function (req, res, next) {
       results: result.rows,
     });
   } catch (e) {
-    if (exist_check.rowCount) {
-      res.status(409);
-    } else {
-      res.status(400);
-    }
-    console.log(e);
+    res.status(400);
     res.json({
-      results: e,
+      results: "request failed.",
     });
   }
 });

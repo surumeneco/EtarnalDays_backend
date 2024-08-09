@@ -142,7 +142,7 @@ const execute_query = async (text, params) => {
 // トランザクション実行
 const execute_transaction = async (queries) => {
   const client = await conn_db.connect();
-  let result = [];
+  let results = [];
 
   // 型チェック
   if (!Array.isArray(queries)) {
@@ -153,7 +153,7 @@ const execute_transaction = async (queries) => {
     await client.query("begin");
     try {
       await queries.forEach(async (query) => {
-        result.push(await client.query(query.text, query.params));
+        results.push(await client.query(query.text, query.params));
       });
       await client.query("commit");
     } catch (e) {
@@ -165,7 +165,7 @@ const execute_transaction = async (queries) => {
   } finally {
     await client.release();
   }
-  return result;
+  return results;
 };
 /*  -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-  */
 

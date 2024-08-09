@@ -2,11 +2,11 @@ const { execute_query } = require("../postgres/db.js");
 
 /*  ---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---
       権限設定
-      0: 無権限
-      1: 閲覧のみ可能
+      0: 無権限(公開情報のみ閲覧可能)
+      1: 管理情報 閲覧可能
       2: 設定集/辞書のみ 表示番号/公開情報編集可能
-      3: 設定集/辞書のみ 登録/編集可能
-      4: 全て 表示番号/公開情報編集可能
+      3: 全て 表示番号/公開情報編集可能
+      4: 設定集/辞書のみ 登録/編集可能
       5: 全て 登録/編集可能
     ---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---  */
 
@@ -43,7 +43,7 @@ const check_auth = async (req, res, level) => {
   const result = await execute_query(query, params);
 
   if (!result.rowCount) {
-    res.status(401);
+    res.status(403);
     res.json({
       results: "lack of authority",
     });
