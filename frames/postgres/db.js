@@ -133,9 +133,38 @@ class postgress {
 // クエリ実行
 const execute_query = async (text, params) => {
   const client = await conn_db.connect();
-  const result = await conn_db.query(text, params);
+  const result = await client.query(text, params);
   await console.log(result);
   await client.release();
+  return result;
+};
+
+// トランザクション実行
+const execute_transaction = async (queries) => {
+  const client = await conn_db.connect();
+  let result = [];
+
+  // 型チェック
+  if (!Array.isArray(queries)) {
+    throw new TypeError("queries are not Array object.");
+  }
+
+  try {
+    await client.query("begin");
+    try {
+      await queries.forEach(async (query) => {
+        result.push(await client.query(query.text, query.params));
+      });
+      await client.query("commit");
+    } catch (e) {
+      await client.query("rollback");
+      throw e;
+    }
+  } catch (e) {
+    throw e;
+  } finally {
+    await client.release();
+  }
   return result;
 };
 /*  -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-  */
@@ -149,5 +178,6 @@ module.exports = {
   // postgress,
   conn_db,
   execute_query,
+  execute_transaction,
 };
 /*  -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-  */
