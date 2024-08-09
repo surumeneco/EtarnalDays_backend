@@ -1,4 +1,4 @@
-const { execute_query } = require("../../../frames/postgres/db.js");
+const { execute_query } = require("../postgres/db.js");
 
 /*  ---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---
       権限チェック
@@ -18,7 +18,7 @@ const check_auth = async (req, res, level) => {
     res.json({
       results: "required login",
     });
-    return;
+    return false;
   }
 
   query += " select";

@@ -63,7 +63,7 @@ router.post("/SetNo", function (req, res, next) {
     ---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---  */
 router.post("/SetDetail", async function (req, res, next) {
   // 権限チェック
-  if (!check_auth(req, res, 5)) {
+  if (!(await check_auth(req, res, 5))) {
     return;
   }
 
