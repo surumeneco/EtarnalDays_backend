@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const { execute_query } = require("../../../frames/postgres/db.js");
 const { format_date } = require("../../../frames/datetime/datetime.js");
+const { check_auth } = require("../../../frames/core/authorization.js");
 
 /*  -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
       メイン処理
@@ -61,6 +62,11 @@ router.post("/SetNo", function (req, res, next) {
       編登録
     ---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---  */
 router.post("/SetDetail", async function (req, res, next) {
+  // 権限チェック
+  if (!check_auth(req, res, 5)) {
+    return;
+  }
+
   let query = "";
   let params = [];
 
