@@ -35,10 +35,134 @@ router.get("/GetPublicDetail", function (req, res, next) {
 /*  ---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---
       編管理情報取得
     ---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---  */
-router.get("/GetManageInfo", function (req, res, next) {
-  res.json({
-    message: "GetManageInfo",
-  });
+router.get("/GetManageInfo", async function (req, res, next) {
+  // 権限チェック
+  if (!(await check_auth(req, res, 1))) {
+    return;
+  }
+
+  // パラメータ変換
+  const req_params = parse_param(req, res);
+  if (!req_params) {
+    return;
+  }
+  /*  -----=-----=-----=-----=-----=-----
+        {
+          volume_title: string,
+          status: string,
+          public_date: {
+            from: date string,
+            to: date string,
+          },
+          update_date: {
+            from: date string,
+            to: date string,
+          },
+          create_date: {
+            from: date string,
+            to: date string,
+          },
+        }
+      -----=-----=-----=-----=-----=-----  */
+
+  let query = "";
+  let where = "";
+  let params = [];
+
+  query += " select";
+  query += " volume_title,";
+  query += " display_no,";
+  query += " status,";
+  query += " public_date,";
+  query += " update_date,";
+  query += " create_date";
+  query += " from t_story_volume";
+
+  if (req_params.volume_title) {
+    where += " volume_title ilike $" + (params.length + 1);
+    params.push("%" + req_params.volume_title + "%");
+  }
+  if (req_params.status) {
+    where += where ? " and" : "";
+    switch (req_params.status) {
+      case "0": // 0: 全て
+        break;
+      case "1": // 1: 公開済
+        where +=
+          " status = 'public' and public_date >= $" + (params.length + 1);
+        params.push(format_date(new Date()));
+        break;
+      case "2": // 2: 未公開
+        where += " status = 'public' and";
+        where += " (";
+        where += " public_date is null";
+        where += " or";
+        where += " public_date < $" + (params.length + 1);
+        where += " )";
+        params.push(format_date(new Date()));
+        break;
+      case "3": // 3: 非公開
+        where += " status = 'private'";
+        break;
+    }
+  }
+  if (req_params.public_date) {
+    if (req_params.public_date.from) {
+      where += where ? " and" : "";
+      where += " public_date >= $" + (params.length + 1);
+      params.push(req_params.public_date.from);
+    }
+    if (req_params.public_date.to) {
+      where += where ? " and" : "";
+      where += " public_date <= $" + (params.length + 1);
+      params.push(req_params.public_date.to);
+    }
+  }
+  if (req_params.update_date) {
+    if (req_params.update_date.from) {
+      where += where ? " and" : "";
+      where += " update_date >= $" + (params.length + 1);
+      params.push(req_params.update_date.from);
+    }
+    if (req_params.update_date.to) {
+      where += where ? " and" : "";
+      where += " update_date <= $" + (params.length + 1);
+      params.push(req_params.update_date.to);
+    }
+  }
+  if (req_params.create_date) {
+    if (req_params.create_date.from) {
+      where += where ? " and" : "";
+      where += " create_date >= $" + (params.length + 1);
+      params.push(req_params.create_date.from);
+    }
+    if (req_params.create_date.to) {
+      where += where ? " and" : "";
+      where += " create_date <= $" + (params.length + 1);
+      params.push(req_params.create_date.to);
+    }
+  }
+  query += where ? " where" + where : "";
+
+  query += " order by display_no, volume_title";
+
+  try {
+    const result = await execute_query(query, params);
+    result.rows.forEach((row) => {
+      row.public_date = row.public_date ? format_date(row.public_date) : null;
+      row.update_date = row.update_date ? format_date(row.update_date) : null;
+      row.create_date = row.create_date ? format_date(row.create_date) : null;
+    });
+    res.json({
+      result_count: result.rowCount,
+      results: result.rows,
+    });
+  } catch (e) {
+    res.status(400);
+    res.json({
+      results: "request failed.",
+    });
+  }
 });
 /*  ---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---  */
 

@@ -4,7 +4,7 @@
 // 日時
 const format_date = (datetime) => {
   // yyyy-MM-dd hh:mm:ss
-  return datetime.toLocaleString("sv-SE").replace("T", " ");
+  return datetime.toLocaleString("sv-SE").replace("T", " ").replace("Z", "");
 };
 
 // 日付のみ
