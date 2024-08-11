@@ -45,10 +45,58 @@ router.get("/GetManageInfo", function (req, res, next) {
 /*  ---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---
       編管理詳細取得
     ---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---  */
-router.get("/GetManageDetail", function (req, res, next) {
-  res.json({
-    message: "GetManageDetail",
-  });
+router.get("/GetManageDetail", async function (req, res, next) {
+  // 権限チェック
+  if (!(await check_auth(req, res, 1))) {
+    return;
+  }
+
+  // パラメータ変換
+  const req_params = parse_param(req, res);
+  if (!req_params) {
+    return;
+  }
+  /*  -----=-----=-----=-----=-----=-----
+        {
+          volume_title: string,
+        }
+      -----=-----=-----=-----=-----=-----  */
+
+  // 必須チェック
+  if (!req_params.volume_title) {
+    res.status(400);
+    res.json({
+      results: "volume_title is required.",
+    });
+    return;
+  }
+
+  let query = "";
+  let params = [];
+
+  query += " select";
+  query += " volume_title,";
+  query += " display_no,";
+  query += " outline,";
+  query += " status,";
+  query += " public_date";
+  query += " from t_story_volume";
+  query += " where";
+  query += " volume_title = $1";
+  params.push(req_params.volume_title);
+
+  try {
+    const result = await execute_query(query, params);
+    res.json({
+      result_count: result.rowCount,
+      results: result.rowCount ? result.rows[0] : null,
+    });
+  } catch (e) {
+    res.status(400);
+    res.json({
+      results: "request failed.",
+    });
+  }
 });
 /*  ---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---  */
 
@@ -70,8 +118,8 @@ router.post("/SetNo", async function (req, res, next) {
         {
           volumes: [
             {
-              volume_title,
-              display_no
+              volume_title: string,
+              display_no: number string,
             }
           ]
         }
@@ -151,7 +199,7 @@ router.post("/SetDetail", async function (req, res, next) {
           outline: string,
           display_no: number string,
           status: string,
-          public_date: date string
+          public_date: date string,
         }
       -----=-----=-----=-----=-----=-----  */
 
@@ -183,7 +231,7 @@ router.post("/SetDetail", async function (req, res, next) {
 
   // 存在チェック
   query += " select";
-  query += " volume_title as title";
+  query += " volume_title";
   query += " from t_story_volume";
   query += " where";
   query += " volume_title = $1";
