@@ -15,10 +15,91 @@ const { parse_param } = require("../../../frames/core/parse_param.js");
 /*  ---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---
       公開編情報取得
     ---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---  */
-router.get("/GetPublicInfo", function (req, res, next) {
-  res.json({
-    message: "GetPublicInfo",
-  });
+router.get("/GetPublicInfo", async function (req, res, next) {
+  // 権限チェック
+  if (!(await check_auth(req, res, 0))) {
+    return;
+  }
+
+  // パラメータ無し
+  // // パラメータ変換
+  // const req_params = parse_param(req, res);
+  // if (!req_params) {
+  //   return;
+  // }
+  // /*  -----=-----=-----=-----=-----=-----
+  //       {
+  //       }
+  //     -----=-----=-----=-----=-----=-----  */
+
+  let volume_query = "";
+  let volume_params = [];
+  let chapter_query = "";
+
+  volume_query += " select";
+  volume_query += " volume_title,";
+  volume_query += " outline,";
+  volume_query += " update_date";
+  volume_query += " from t_story_volume";
+  volume_query += " where";
+  volume_query += " status = 'public'";
+  volume_query += " and";
+  volume_query += " public_date <= $1";
+  volume_query += " order by display_no, volume_title";
+  volume_params.push(format_date(new Date()));
+
+  chapter_query += " select";
+  chapter_query += " public_date,";
+  chapter_query += " part_title,";
+  chapter_query += " chapter_title";
+  chapter_query += " from t_story_chapter";
+  chapter_query += " where";
+  chapter_query += " volume_title = $1";
+  chapter_query += " and";
+  chapter_query += " status = 'public'";
+  chapter_query += " and";
+  chapter_query += " public_date <= $2";
+  chapter_query += " order by public_date";
+  chapter_query += " limit 1";
+
+  try {
+    const volume_result = await execute_query(volume_query, volume_params);
+    const res_results = volume_result.rows;
+
+    const queries = res_results.reduce((acc, res_result) => {
+      res_result.update_date = res_result.update_date
+        ? format_date(res_result.update_date)
+        : null;
+
+      let chapter_params = [];
+      chapter_params.push(res_result.volume_title);
+      chapter_params.push(format_date(new Date()));
+      acc.push({ text: chapter_query, params: chapter_params });
+      return acc;
+    }, []);
+
+    const chpater_results = await execute_transaction(queries);
+    chpater_results.forEach((chpater_result, index) => {
+      res_results[index].latest_chapter = chpater_result.rowCount
+        ? (() => {
+            chpater_result.rows[0].public_datechpater_result.rows[0].public_date
+              ? format_date(chpater_result.rows[0].public_date)
+              : null;
+            return chpater_result.rows[0];
+          })()
+        : null;
+    });
+
+    res.json({
+      result_count: res_results.length,
+      results: res_results,
+    });
+  } catch (e) {
+    res.status(400);
+    res.json({
+      results: "request failed.",
+    });
+  }
 });
 /*  ---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---  */
 
