@@ -25,10 +25,68 @@ router.get("/GetPublicInfo", function (req, res, next) {
 /*  ---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---
       公開編詳細取得
     ---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---  */
-router.get("/GetPublicDetail", function (req, res, next) {
-  res.json({
-    message: "GetPublicDetail",
-  });
+router.get("/GetPublicDetail", async function (req, res, next) {
+  // 権限チェック
+  if (!(await check_auth(req, res, 0))) {
+    return;
+  }
+
+  // パラメータ変換
+  const req_params = parse_param(req, res);
+  if (!req_params) {
+    return;
+  }
+  /*  -----=-----=-----=-----=-----=-----
+        {
+          volume_title: string,
+        }
+      -----=-----=-----=-----=-----=-----  */
+
+  // 必須チェック
+  if (!req_params.volume_title) {
+    res.status(400);
+    res.json({
+      results: "volume_title is required.",
+    });
+    return;
+  }
+
+  let query = "";
+  let params = [];
+
+  query += " select";
+  query += " volume_title,";
+  query += " outline,";
+  query += " public_date,";
+  query += " update_date";
+  query += " from t_story_volume";
+  query += " where";
+  query += " volume_title = $1";
+  query += " and";
+  query += " status = 'public'";
+  query += " and";
+  query += " public_date <= $2";
+  params.push(req_params.volume_title);
+  params.push(format_date(new Date()));
+
+  try {
+    const result = await execute_query(query, params);
+    if (result.rowCount) {
+      result.rows.forEach((row) => {
+        row.public_date = row.public_date ? format_date(row.public_date) : null;
+        row.update_date = row.update_date ? format_date(row.update_date) : null;
+      });
+    }
+    res.json({
+      result_count: result.rowCount,
+      results: result.rowCount ? result.rows[0] : null,
+    });
+  } catch (e) {
+    res.status(400);
+    res.json({
+      results: "request failed.",
+    });
+  }
 });
 /*  ---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---  */
 
@@ -89,7 +147,7 @@ router.get("/GetManageInfo", async function (req, res, next) {
         break;
       case "1": // 1: 公開済
         where +=
-          " status = 'public' and public_date >= $" + (params.length + 1);
+          " status = 'public' and public_date <= $" + (params.length + 1);
         params.push(format_date(new Date()));
         break;
       case "2": // 2: 未公開
@@ -97,7 +155,7 @@ router.get("/GetManageInfo", async function (req, res, next) {
         where += " (";
         where += " public_date is null";
         where += " or";
-        where += " public_date < $" + (params.length + 1);
+        where += " public_date > $" + (params.length + 1);
         where += " )";
         params.push(format_date(new Date()));
         break;
@@ -148,11 +206,13 @@ router.get("/GetManageInfo", async function (req, res, next) {
 
   try {
     const result = await execute_query(query, params);
-    result.rows.forEach((row) => {
-      row.public_date = row.public_date ? format_date(row.public_date) : null;
-      row.update_date = row.update_date ? format_date(row.update_date) : null;
-      row.create_date = row.create_date ? format_date(row.create_date) : null;
-    });
+    if (result.rowCount) {
+      result.rows.forEach((row) => {
+        row.public_date = row.public_date ? format_date(row.public_date) : null;
+        row.update_date = row.update_date ? format_date(row.update_date) : null;
+        row.create_date = row.create_date ? format_date(row.create_date) : null;
+      });
+    }
     res.json({
       result_count: result.rowCount,
       results: result.rows,
@@ -211,6 +271,11 @@ router.get("/GetManageDetail", async function (req, res, next) {
 
   try {
     const result = await execute_query(query, params);
+    if (result.rowCount) {
+      result.rows.forEach((row) => {
+        row.public_date = row.public_date ? format_date(row.public_date) : null;
+      });
+    }
     res.json({
       result_count: result.rowCount,
       results: result.rowCount ? result.rows[0] : null,
