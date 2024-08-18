@@ -118,6 +118,75 @@ router.get("/GetPublicDetail", async function (req, res, next) {
   if (!(await check_auth(req, res, 0))) {
     return;
   }
+
+  // パラメータ変換
+  const req_params = parse_param(req, res);
+  if (!req_params) {
+    return;
+  }
+  /*  -----=-----=-----=-----=-----=-----
+        {
+          volume_title: string,
+          part_title: string,
+        }
+      -----=-----=-----=-----=-----=-----  */
+
+  // 必須チェック
+  if (!req_params.volume_title) {
+    res.status(400);
+    res.json({
+      results: "volume_title is required.",
+    });
+    return;
+  }
+  if (!req_params.part_title) {
+    res.status(400);
+    res.json({
+      results: "part_title is required.",
+    });
+    return;
+  }
+
+  let query = "";
+  let params = [];
+
+  query += " select";
+  query += " volume_title,";
+  query += " part_title,";
+  query += " summary,";
+  query += " public_date,";
+  query += " update_date";
+  query += " from t_story_part";
+  query += " where";
+  query += " volume_title = $1";
+  query += " and";
+  query += " part_title = $2";
+  query += " and";
+  query += " status = 'public'";
+  query += " and";
+  query += " public_date <= $3";
+  params.push(req_params.volume_title);
+  params.push(req_params.part_title);
+  params.push(format_date(new Date()));
+
+  try {
+    const result = await execute_query(query, params);
+    if (result.rowCount) {
+      result.rows.forEach((row) => {
+        row.public_date = row.public_date ? format_date(row.public_date) : null;
+        row.update_date = row.update_date ? format_date(row.update_date) : null;
+      });
+    }
+    res.json({
+      result_count: result.rowCount,
+      results: result.rowCount ? result.rows[0] : null,
+    });
+  } catch (e) {
+    res.status(400);
+    res.json({
+      results: "request failed.",
+    });
+  }
 });
 /*  ---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---  */
 
