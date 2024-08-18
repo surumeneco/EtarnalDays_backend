@@ -82,7 +82,7 @@ router.get("/GetPublicInfo", async function (req, res, next) {
     chpater_results.forEach((chpater_result, index) => {
       res_results[index].latest_chapter = chpater_result.rowCount
         ? (() => {
-            chpater_result.rows[0].public_datechpater_result.rows[0].public_date
+            chpater_result.rows[0].public_date
               ? format_date(chpater_result.rows[0].public_date)
               : null;
             return chpater_result.rows[0];

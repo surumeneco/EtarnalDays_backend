@@ -1,5 +1,12 @@
 const express = require("express");
 const router = express.Router();
+const {
+  execute_query,
+  execute_transaction,
+} = require("../../../frames/postgres/db.js");
+const { format_date } = require("../../../frames/datetime/datetime.js");
+const { check_auth } = require("../../../frames/core/authorization.js");
+const { parse_param } = require("../../../frames/core/parse_param.js");
 
 /*  -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
       メイン処理
@@ -12,6 +19,93 @@ router.get("/GetPublicInfo", async function (req, res, next) {
   // 権限チェック
   if (!(await check_auth(req, res, 0))) {
     return;
+  }
+
+  // パラメータ変換
+  const req_params = parse_param(req, res);
+  if (!req_params) {
+    return;
+  }
+  /*  -----=-----=-----=-----=-----=-----
+        {
+          volume_title: string
+        }
+      -----=-----=-----=-----=-----=-----  */
+
+  let part_query = "";
+  let part_params = [];
+  let chapter_query = "";
+
+  part_query += " select";
+  part_query += " volume_title,";
+  part_query += " part_title,";
+  part_query += " summary,";
+  part_query += " update_date";
+  part_query += " from t_story_part";
+  part_query += " where";
+  part_query += " volume_title = $1";
+  part_query += " and";
+  part_query += " status = 'public'";
+  part_query += " and";
+  part_query += " public_date <= $2";
+  part_query += " order by display_no, part_title";
+  part_params.push(req_params.volume_title);
+  part_params.push(format_date(new Date()));
+
+  chapter_query += " select";
+  chapter_query += " public_date,";
+  chapter_query += " part_title,";
+  chapter_query += " chapter_title";
+  chapter_query += " from t_story_chapter";
+  chapter_query += " where";
+  chapter_query += " volume_title = $1";
+  chapter_query += " and";
+  chapter_query += " part_title = $2";
+  chapter_query += " and";
+  chapter_query += " status = 'public'";
+  chapter_query += " and";
+  chapter_query += " public_date <= $3";
+  chapter_query += " order by public_date";
+  chapter_query += " limit 1";
+
+  try {
+    const part_result = await execute_query(part_query, part_params);
+    const res_results = part_result.rows;
+
+    const queries = res_results.reduce((acc, res_result) => {
+      res_result.update_date = res_result.update_date
+        ? format_date(res_result.update_date)
+        : null;
+
+      let chapter_params = [];
+      chapter_params.push(req_params.volume_title);
+      chapter_params.push(res_result.part_title);
+      chapter_params.push(format_date(new Date()));
+      acc.push({ text: chapter_query, params: chapter_params });
+      return acc;
+    }, []);
+
+    const chpater_results = await execute_transaction(queries);
+    chpater_results.forEach((chpater_result, index) => {
+      res_results[index].latest_chapter = chpater_result.rowCount
+        ? (() => {
+            chpater_result.rows[0].public_date
+              ? format_date(chpater_result.rows[0].public_date)
+              : null;
+            return chpater_result.rows[0];
+          })()
+        : null;
+    });
+
+    res.json({
+      result_count: res_results.length,
+      results: res_results,
+    });
+  } catch (e) {
+    res.status(400);
+    res.json({
+      results: "request failed.",
+    });
   }
 });
 /*  ---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---  */
